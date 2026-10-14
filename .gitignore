@@ -1,0 +1,13 @@
+node_modules
+.next
+.DS_Store
+*.db
+*.db-shm
+*.db-wal
+*.log
+.env.local
+.env*.local
+web/.next
+web/node_modules
+web/*.db*
+web/*.xlsx

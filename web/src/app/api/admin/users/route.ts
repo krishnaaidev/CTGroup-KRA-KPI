@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const session = getSessionFromRequest(req);
@@ -55,10 +57,10 @@ export async function GET(req: NextRequest) {
     // Compute stats
     const stats = {
       totalUsers: db.prepare('SELECT count(*) as c FROM users').get() as { c: number },
-      pendingRegistrations: db.prepare('SELECT count(*) as c FROM users WHERE status = "PENDING_APPROVAL"').get() as { c: number },
-      facultyCount: db.prepare('SELECT count(*) as c FROM users WHERE role = "FACULTY" AND status = "APPROVED"').get() as { c: number },
-      hodCount: db.prepare('SELECT count(*) as c FROM users WHERE role = "HOD"').get() as { c: number },
-      hoiCount: db.prepare('SELECT count(*) as c FROM users WHERE role = "HOI"').get() as { c: number },
+      pendingRegistrations: db.prepare("SELECT count(*) as c FROM users WHERE status = 'PENDING_APPROVAL'").get() as { c: number },
+      facultyCount: db.prepare("SELECT count(*) as c FROM users WHERE role = 'FACULTY' AND status = 'APPROVED'").get() as { c: number },
+      hodCount: db.prepare("SELECT count(*) as c FROM users WHERE role = 'HOD'").get() as { c: number },
+      hoiCount: db.prepare("SELECT count(*) as c FROM users WHERE role = 'HOI'").get() as { c: number },
     };
 
     return NextResponse.json({

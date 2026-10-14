@@ -12,7 +12,9 @@ import {
   CheckCircle2, 
   ArrowRight,
   Sparkles,
-  GraduationCap
+  GraduationCap,
+  Smartphone,
+  Download
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -163,6 +165,31 @@ export default function LoginPage() {
                 </div>
                 <span className="text-slate-500 text-[11px]">developer@ctgroup.in • Password: CTAdmin@2026</span>
               </button>
+            </div>
+
+            {/* Mobile App Download Card */}
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <a
+                href="/CTGroup_KRA_KPI.apk"
+                download="CTGroup_KRA_KPI.apk"
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md hover:from-emerald-700 hover:to-teal-800 transition group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center">
+                    <Smartphone className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs font-bold tracking-wide flex items-center gap-1.5">
+                      Download Android App (APK)
+                      <span className="bg-white/20 text-[10px] px-1.5 py-0.5 rounded font-medium">v1.0</span>
+                    </div>
+                    <div className="text-[11px] text-emerald-100">Direct install for Android devices</div>
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-white text-emerald-700 flex items-center justify-center group-hover:scale-110 transition shadow">
+                  <Download className="w-4 h-4" />
+                </div>
+              </a>
             </div>
           </div>
         </div>

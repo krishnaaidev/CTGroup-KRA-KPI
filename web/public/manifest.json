@@ -1,0 +1,24 @@
+{
+  "name": "CT Group KRA & KPI Management System",
+  "short_name": "CT Group KRA",
+  "description": "CT Group of Institutions Faculty KRA & KPI Performance Evaluation Portal (1,000 Marks)",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1d4ed8",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

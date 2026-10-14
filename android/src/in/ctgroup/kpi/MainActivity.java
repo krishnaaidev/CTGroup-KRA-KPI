@@ -22,7 +22,7 @@ import android.widget.ProgressBar;
 
 public class MainActivity extends Activity {
 
-    public static final String PORTAL_URL = "https://sell-pin-pope-chat.trycloudflare.com";
+    public static final String PORTAL_URL = "https://shopzilla-pierre-understood-doors.trycloudflare.com";
     private static final int FILE_CHOOSER_REQUEST_CODE = 2026;
 
     private WebView webView;

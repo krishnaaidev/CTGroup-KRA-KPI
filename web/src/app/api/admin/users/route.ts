@@ -56,22 +56,18 @@ export async function GET(req: NextRequest) {
 
     // Compute stats
     const stats = {
-      totalUsers: db.prepare('SELECT count(*) as c FROM users').get() as { c: number },
+      totalFaculties: db.prepare("SELECT count(*) as c FROM users WHERE role = 'FACULTY'").get() as { c: number },
       pendingRegistrations: db.prepare("SELECT count(*) as c FROM users WHERE status = 'PENDING_APPROVAL'").get() as { c: number },
-      facultyCount: db.prepare("SELECT count(*) as c FROM users WHERE role = 'FACULTY' AND status = 'APPROVED'").get() as { c: number },
-      hodCount: db.prepare("SELECT count(*) as c FROM users WHERE role = 'HOD'").get() as { c: number },
-      hoiCount: db.prepare("SELECT count(*) as c FROM users WHERE role = 'HOI'").get() as { c: number },
+      approvedFaculties: db.prepare("SELECT count(*) as c FROM users WHERE role = 'FACULTY' AND status = 'APPROVED'").get() as { c: number },
     };
 
     return NextResponse.json({
       success: true,
       users,
       stats: {
-        total: stats.totalUsers.c,
+        total: stats.totalFaculties.c,
         pending: stats.pendingRegistrations.c,
-        faculty: stats.facultyCount.c,
-        hod: stats.hodCount.c,
-        hoi: stats.hoiCount.c,
+        faculty: stats.approvedFaculties.c,
       },
     });
   } catch (error: any) {

@@ -4,14 +4,10 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
-  Building2, 
   GraduationCap, 
-  UserCheck, 
   ShieldCheck, 
   LogOut, 
   Calendar, 
-  FileSpreadsheet, 
-  ChevronDown,
   Menu,
   X
 } from 'lucide-react';
@@ -22,7 +18,7 @@ interface NavbarProps {
     name: string;
     college_id: string;
     email: string;
-    role: 'ADMIN' | 'HOD' | 'HOI' | 'FACULTY';
+    role: 'ADMIN' | 'FACULTY';
     department_name?: string;
     designation: string;
   } | null;
@@ -32,14 +28,13 @@ interface NavbarProps {
 export default function Navbar({ user, activeSession = '2026-2027' }: NavbarProps) {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSwitchMenuOpen, setIsSwitchMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       router.push('/login');
       router.refresh();
-    } catch (e) {
+    } catch {
       router.push('/login');
     }
   };
@@ -47,8 +42,6 @@ export default function Navbar({ user, activeSession = '2026-2027' }: NavbarProp
   const getRoleBadgeColor = (role?: string) => {
     switch (role) {
       case 'ADMIN': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'HOI': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-      case 'HOD': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'FACULTY': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       default: return 'bg-slate-100 text-slate-800 border-slate-200';
     }
@@ -68,7 +61,7 @@ export default function Navbar({ user, activeSession = '2026-2027' }: NavbarProp
                 <div className="flex items-center space-x-2">
                   <span className="font-bold text-slate-900 text-base sm:text-lg tracking-tight">CT Group of Institutions</span>
                   <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-                    1,000-Mark KRA/KPI
+                    Faculty 1,000-Mark KRA/KPI
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 hidden sm:block">Performance Evaluation & Appraisal Portal</p>
@@ -99,50 +92,24 @@ export default function Navbar({ user, activeSession = '2026-2027' }: NavbarProp
                   </span>
                 </div>
 
-                {/* Quick Role Navigator for Reviewers / Admins */}
-                <div className="relative">
-                  <button
-                    onClick={() => setIsSwitchMenuOpen(!isSwitchMenuOpen)}
-                    className="p-1.5 rounded-md hover:bg-slate-100 text-slate-600 text-xs flex items-center space-x-1 border border-slate-200"
-                    title="Switch Portal Views"
+                {/* Direct Role Portal Link for Admins */}
+                {user.role === 'ADMIN' ? (
+                  <Link
+                    href="/admin"
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md text-purple-700 bg-purple-50 hover:bg-purple-100 transition border border-purple-200"
                   >
-                    <span>Portals</span>
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
-
-                  {isSwitchMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
-                      <Link 
-                        href="/faculty" 
-                        onClick={() => setIsSwitchMenuOpen(false)}
-                        className="flex items-center px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
-                      >
-                        <GraduationCap className="w-3.5 h-3.5 mr-2 text-emerald-600" /> Faculty Portal
-                      </Link>
-                      <Link 
-                        href="/hod" 
-                        onClick={() => setIsSwitchMenuOpen(false)}
-                        className="flex items-center px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
-                      >
-                        <Building2 className="w-3.5 h-3.5 mr-2 text-blue-600" /> HOD Dashboard
-                      </Link>
-                      <Link 
-                        href="/hoi" 
-                        onClick={() => setIsSwitchMenuOpen(false)}
-                        className="flex items-center px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
-                      >
-                        <UserCheck className="w-3.5 h-3.5 mr-2 text-indigo-600" /> HOI Dashboard
-                      </Link>
-                      <Link 
-                        href="/admin" 
-                        onClick={() => setIsSwitchMenuOpen(false)}
-                        className="flex items-center px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 border-t border-slate-100 font-semibold"
-                      >
-                        <ShieldCheck className="w-3.5 h-3.5 mr-2 text-purple-600" /> Admin Console
-                      </Link>
-                    </div>
-                  )}
-                </div>
+                    <ShieldCheck className="w-3.5 h-3.5 mr-1 text-purple-600" />
+                    Admin Console
+                  </Link>
+                ) : (
+                  <Link
+                    href="/faculty"
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition border border-emerald-200"
+                  >
+                    <GraduationCap className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                    Faculty Portal
+                  </Link>
+                )}
 
                 <button
                   onClick={handleLogout}
@@ -192,18 +159,15 @@ export default function Navbar({ user, activeSession = '2026-2027' }: NavbarProp
                 <p className="text-xs text-slate-500">ID: {user.college_id} ({user.role})</p>
               </div>
               <div className="grid grid-cols-2 gap-2 pt-2">
-                <Link href="/faculty" className="text-xs font-medium text-slate-700 p-2 bg-slate-50 rounded">
-                  Faculty Portal
-                </Link>
-                <Link href="/hod" className="text-xs font-medium text-slate-700 p-2 bg-slate-50 rounded">
-                  HOD Dashboard
-                </Link>
-                <Link href="/hoi" className="text-xs font-medium text-slate-700 p-2 bg-slate-50 rounded">
-                  HOI Dashboard
-                </Link>
-                <Link href="/admin" className="text-xs font-medium text-slate-700 p-2 bg-slate-50 rounded">
-                  Admin Console
-                </Link>
+                {user.role === 'ADMIN' ? (
+                  <Link href="/admin" className="text-xs font-medium text-purple-700 p-2 bg-purple-50 rounded">
+                    Admin Console
+                  </Link>
+                ) : (
+                  <Link href="/faculty" className="text-xs font-medium text-emerald-700 p-2 bg-emerald-50 rounded">
+                    Faculty Portal
+                  </Link>
+                )}
               </div>
               <button
                 onClick={handleLogout}

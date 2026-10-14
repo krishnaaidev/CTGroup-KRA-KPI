@@ -42,8 +42,6 @@ export default function LoginPage() {
       // Redirect according to user role
       const role = data.user.role;
       if (role === 'ADMIN') router.push('/admin');
-      else if (role === 'HOD') router.push('/hod');
-      else if (role === 'HOI') router.push('/hoi');
       else router.push('/faculty');
       router.refresh();
     } catch (err: any) {
@@ -152,42 +150,19 @@ export default function LoginPage() {
             <div className="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-3">
               <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700 mb-2">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Demo One-Click Role Selector</span>
+                <span>Default Administrator Login</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('developer@ctgroup.in', 'CTAdmin@2026')}
-                  className="p-2 text-left bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition"
-                >
-                  <span className="font-bold text-purple-900 block">👑 Admin (ID: 20)</span>
-                  <span className="text-slate-500">developer@ctgroup.in</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('faculty.cse@ctgroup.in', 'Faculty@123')}
-                  className="p-2 text-left bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition"
-                >
-                  <span className="font-bold text-emerald-900 block">👨‍🏫 Faculty (CSE)</span>
-                  <span className="text-slate-500">faculty.cse@ctgroup.in</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('hod.cse@ctgroup.in', 'HOD@123')}
-                  className="p-2 text-left bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition"
-                >
-                  <span className="font-bold text-blue-900 block">🏢 HOD (400+600)</span>
-                  <span className="text-slate-500">hod.cse@ctgroup.in</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('hoi.engg@ctgroup.in', 'HOI@123')}
-                  className="p-2 text-left bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition"
-                >
-                  <span className="font-bold text-indigo-900 block">🏛️ HOI (500+500)</span>
-                  <span className="text-slate-500">hoi.engg@ctgroup.in</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('developer@ctgroup.in', 'CTAdmin@2026')}
+                className="w-full p-2.5 text-left bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition"
+              >
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-purple-900 block text-xs">👑 Initial Admin (ID: 20)</span>
+                  <span className="text-[11px] text-purple-700 font-medium">Click to fill</span>
+                </div>
+                <span className="text-slate-500 text-[11px]">developer@ctgroup.in • Password: CTAdmin@2026</span>
+              </button>
             </div>
           </div>
         </div>

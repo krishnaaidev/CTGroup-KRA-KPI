@@ -1,6 +1,5 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import fs from 'fs';
 import bcrypt from 'bcryptjs';
 
 // Resolve database path in the project directory
@@ -18,7 +17,7 @@ export function getDb(): Database.Database {
 }
 
 function initDb(database: Database.Database) {
-  // 1. Users table
+  // 1. Users table (Strictly ADMIN and FACULTY)
   database.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,7 +26,7 @@ function initDb(database: Database.Database) {
       email TEXT UNIQUE NOT NULL,
       phone TEXT,
       password_hash TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('ADMIN', 'HOD', 'HOI', 'FACULTY')),
+      role TEXT NOT NULL DEFAULT 'FACULTY' CHECK(role IN ('ADMIN', 'FACULTY')),
       department_id INTEGER,
       designation TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'PENDING_APPROVAL' CHECK(status IN ('PENDING_APPROVAL', 'APPROVED', 'REJECTED')),
@@ -59,11 +58,11 @@ function initDb(database: Database.Database) {
     );
   `);
 
-  // 4. Evaluation Categories
+  // 4. Evaluation Categories (17 Faculty Categories = 1,000 Marks)
   database.exec(`
     CREATE TABLE IF NOT EXISTS evaluation_categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      role TEXT NOT NULL CHECK(role IN ('FACULTY', 'HOD', 'HOI')),
+      role TEXT NOT NULL DEFAULT 'FACULTY',
       code TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
       section TEXT DEFAULT 'FACULTY',
@@ -76,7 +75,7 @@ function initDb(database: Database.Database) {
     );
   `);
 
-  // 5. Faculty Submissions (also handles general submission records)
+  // 5. Faculty Submissions
   database.exec(`
     CREATE TABLE IF NOT EXISTS faculty_submissions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -127,42 +126,7 @@ function initDb(database: Database.Database) {
     );
   `);
 
-  // 8. HOD Evaluations (400 Dept + 600 Self = 1000 Total)
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS hod_evaluations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      hod_id INTEGER NOT NULL REFERENCES users(id),
-      department_id INTEGER NOT NULL REFERENCES departments(id),
-      session_id INTEGER NOT NULL REFERENCES academic_sessions(id),
-      dept_score REAL NOT NULL DEFAULT 0,
-      self_score REAL NOT NULL DEFAULT 0,
-      total_score REAL NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'DRAFT' CHECK(status IN ('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED')),
-      admin_remarks TEXT,
-      submitted_at TEXT,
-      reviewed_at TEXT,
-      UNIQUE(hod_id, session_id)
-    );
-  `);
-
-  // 9. HOI Evaluations (500 Inst + 500 Self = 1000 Total)
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS hoi_evaluations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      hoi_id INTEGER NOT NULL REFERENCES users(id),
-      session_id INTEGER NOT NULL REFERENCES academic_sessions(id),
-      inst_score REAL NOT NULL DEFAULT 0,
-      self_score REAL NOT NULL DEFAULT 0,
-      total_score REAL NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'DRAFT' CHECK(status IN ('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED')),
-      authority_remarks TEXT,
-      submitted_at TEXT,
-      reviewed_at TEXT,
-      UNIQUE(hoi_id, session_id)
-    );
-  `);
-
-  // 10. Audit Logs
+  // 8. Audit Logs
   database.exec(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -181,6 +145,7 @@ function initDb(database: Database.Database) {
 }
 
 function seedInitialData(database: Database.Database) {
+  // 1. Seed Active Academic Session
   const sessionCount = database.prepare('SELECT count(*) as count FROM academic_sessions').get() as { count: number };
   if (sessionCount.count === 0) {
     database.prepare(`
@@ -189,7 +154,7 @@ function seedInitialData(database: Database.Database) {
     `).run('2026-2027', 1, '2026-07-01', '2027-06-30', '2026-12-31');
   }
 
-  // Seed Departments
+  // 2. Seed Academic Departments
   const deptCount = database.prepare('SELECT count(*) as count FROM departments').get() as { count: number };
   if (deptCount.count === 0) {
     const insertDept = database.prepare('INSERT INTO departments (name, code) VALUES (?, ?)');
@@ -202,22 +167,16 @@ function seedInitialData(database: Database.Database) {
     insertDept.run('Hotel Management & Catering', 'HMCT');
   }
 
-  // Seed Users
-  const userCount = database.prepare('SELECT count(*) as count FROM users').get() as { count: number };
-  if (userCount.count === 0) {
+  // 3. Seed ONLY the Initial Admin account (No pre-added faculties)
+  const adminExists = database.prepare("SELECT id FROM users WHERE role = 'ADMIN'").get();
+  if (!adminExists) {
     const now = new Date().toISOString();
     const adminPasswordHash = bcrypt.hashSync('CTAdmin@2026', 10);
-    const facultyPasswordHash = bcrypt.hashSync('Faculty@123', 10);
-    const hodPasswordHash = bcrypt.hashSync('HOD@123', 10);
-    const hoiPasswordHash = bcrypt.hashSync('HOI@123', 10);
 
-    const insertUser = database.prepare(`
+    database.prepare(`
       INSERT INTO users (id, name, college_id, email, phone, password_hash, role, department_id, designation, status, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    // 1. Initial Admin (ID: 20, email: developer@ctgroup.in as stated in PRD Section 2)
-    insertUser.run(
+    `).run(
       20,
       'System Administrator',
       '20',
@@ -231,75 +190,10 @@ function seedInitialData(database: Database.Database) {
       now,
       now
     );
-
-    // 2. Demo HOD (CSE Department ID: 1)
-    insertUser.run(
-      21,
-      'Dr. Rajesh Sharma',
-      'CT-HOD-201',
-      'hod.cse@ctgroup.in',
-      '+91 98765 11111',
-      hodPasswordHash,
-      'HOD',
-      1,
-      'Professor & Head of Department',
-      'APPROVED',
-      now,
-      now
-    );
-    database.prepare('UPDATE departments SET hod_user_id = 21 WHERE id = 1').run();
-
-    // 3. Demo HOI (Head of Institution)
-    insertUser.run(
-      22,
-      'Dr. Gurpreet Singh',
-      'CT-HOI-301',
-      'hoi.engg@ctgroup.in',
-      '+91 98765 22222',
-      hoiPasswordHash,
-      'HOI',
-      null,
-      'Director / Campus Director',
-      'APPROVED',
-      now,
-      now
-    );
-
-    // 4. Demo Faculty (Approved)
-    insertUser.run(
-      23,
-      'Prof. Ananya Verma',
-      'CT-FAC-101',
-      'faculty.cse@ctgroup.in',
-      '+91 98765 33333',
-      facultyPasswordHash,
-      'FACULTY',
-      1,
-      'Assistant Professor (Senior Scale)',
-      'APPROVED',
-      now,
-      now
-    );
-
-    // 5. Demo Faculty (Pending Approval)
-    insertUser.run(
-      24,
-      'Prof. Vikram Malhotra',
-      'CT-FAC-102',
-      'vikram.cse@ctgroup.in',
-      '+91 98765 44444',
-      facultyPasswordHash,
-      'FACULTY',
-      1,
-      'Assistant Professor',
-      'PENDING_APPROVAL',
-      now,
-      now
-    );
   }
 
-  // Seed Categories (Faculty 17 Categories = 1000 Marks, HOD 400/600, HOI 500/500)
-  const catCount = database.prepare('SELECT count(*) as count FROM evaluation_categories').get() as { count: number };
+  // 4. Seed the 17 Faculty KRA & KPI Categories (Strict 1,000 Marks Framework)
+  const catCount = database.prepare("SELECT count(*) as count FROM evaluation_categories WHERE role = 'FACULTY'").get() as { count: number };
   if (catCount.count === 0) {
     const insertCat = database.prepare(`
       INSERT INTO evaluation_categories 
@@ -307,7 +201,6 @@ function seedInitialData(database: Database.Database) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    // 17 Faculty Categories (Total = 1,000 Marks)
     const facultyCategories = [
       {
         role: 'FACULTY',
@@ -565,278 +458,5 @@ function seedInitialData(database: Database.Database) {
         cat.order_num
       );
     }
-
-    // HOD Categories: Departmental Performance (400 Marks) + Self Performance (600 Marks) = 1,000 Marks
-    const hodCategories = [
-      {
-        role: 'HOD',
-        code: 'HOD_DEPT_ACADEMIC',
-        name: 'Department Academic & University Results',
-        section: 'DEPT',
-        description: 'Average department pass percentage across all semesters and university rank holders.',
-        target_criteria: 'Target 85%+ overall pass rate',
-        max_marks: 100,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 100 }),
-        order_num: 101,
-      },
-      {
-        role: 'HOD',
-        code: 'HOD_DEPT_PLACEMENT',
-        name: 'Placement & Internship Conversion',
-        section: 'DEPT',
-        description: 'Percentage of eligible final year department students placed and core internships secured.',
-        target_criteria: 'Target 80%+ placement conversion',
-        max_marks: 100,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 100 }),
-        order_num: 102,
-      },
-      {
-        role: 'HOD',
-        code: 'HOD_DEPT_RESEARCH',
-        name: 'Faculty Research & Grant Output',
-        section: 'DEPT',
-        description: 'Cumulative department research publications (Scopus/WoS), patents filed, and external project grants.',
-        target_criteria: 'Minimum 10 publications and 1 funded project per department',
-        max_marks: 100,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 100 }),
-        order_num: 103,
-      },
-      {
-        role: 'HOD',
-        code: 'HOD_DEPT_ACCREDITATION',
-        name: 'Accreditation, NBA/NAAC Readiness & Compliance',
-        section: 'DEPT',
-        description: 'Maintenance of Criteria files, SAR preparation, continuous outcome-based education (OBE) compliance.',
-        target_criteria: '100% compliance during internal and university audits',
-        max_marks: 100,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 100 }),
-        order_num: 104,
-      },
-      // HOD Self Performance (600 Marks)
-      {
-        role: 'HOD',
-        code: 'HOD_SELF_ACADEMIC_PLAN',
-        name: 'Academic Planning & Curriculum Execution',
-        section: 'SELF',
-        description: 'Timetable design, load distribution, academic calendar adherence, and syllabus tracking.',
-        target_criteria: 'Timely commencement, zero lecture disruption, 100% timetable coverage',
-        max_marks: 150,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 150 }),
-        order_num: 105,
-      },
-      {
-        role: 'HOD',
-        code: 'HOD_SELF_FACULTY_DEV',
-        name: 'Faculty Coordination & Mentoring',
-        section: 'SELF',
-        description: 'Faculty performance appraisal, conflict resolution, mentoring junior faculty, FDP nominations.',
-        target_criteria: '100% faculty appraisals completed and development roadmaps submitted',
-        max_marks: 150,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 150 }),
-        order_num: 106,
-      },
-      {
-        role: 'HOD',
-        code: 'HOD_SELF_STUDENT_ENGAGEMENT',
-        name: 'Student Grievance & Technical Clubs Governance',
-        section: 'SELF',
-        description: 'Department club activities, mentoring program oversight, industrial visits, guest lectures.',
-        target_criteria: 'Minimum 4 club events and 100% grievance resolution within 7 days',
-        max_marks: 150,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 150 }),
-        order_num: 107,
-      },
-      {
-        role: 'HOD',
-        code: 'HOD_SELF_ADMIN_LEADERSHIP',
-        name: 'Administrative Leadership & Strategic Vision',
-        section: 'SELF',
-        description: 'Departmental budget management, procurement, institutional committee participation.',
-        target_criteria: 'On-time budget submission and strategic growth targets met',
-        max_marks: 150,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 150 }),
-        order_num: 108,
-      },
-    ];
-
-    for (const cat of hodCategories) {
-      insertCat.run(
-        cat.role,
-        cat.code,
-        cat.name,
-        cat.section,
-        cat.description,
-        cat.target_criteria,
-        cat.max_marks,
-        cat.scoring_type,
-        cat.scoring_rules_json,
-        cat.order_num
-      );
-    }
-
-    // HOI Categories: Institutional Performance (500 Marks) + Self Performance (500 Marks) = 1,000 Marks
-    const hoiCategories = [
-      {
-        role: 'HOI',
-        code: 'HOI_INST_ADMISSIONS',
-        name: 'Campus Admissions & Intake Fulfillment',
-        section: 'INST',
-        description: 'Overall student enrollment percentage against AICTE sanctioned intake across all branches.',
-        target_criteria: 'Achieve >= 90% seat fulfillment across campus',
-        max_marks: 150,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 150 }),
-        order_num: 201,
-      },
-      {
-        role: 'HOI',
-        code: 'HOI_INST_ACCREDITATION_NIRF',
-        name: 'NAAC, NBA & NIRF Rankings Leadership',
-        section: 'INST',
-        description: 'Preparation, submission and score enhancement for national and state institutional ranking frameworks.',
-        target_criteria: 'Maintain A+ NAAC grade and top NIRF innovation ranking band',
-        max_marks: 150,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 150 }),
-        order_num: 202,
-      },
-      {
-        role: 'HOI',
-        code: 'HOI_INST_PLACEMENTS_MOUS',
-        name: 'Campus Placements & Corporate MoUs',
-        section: 'INST',
-        description: 'Tier-1 company visits, highest/average CTC package growth, and active industry partnerships.',
-        target_criteria: 'Min 25 corporate MoUs and 85%+ institutional placement rate',
-        max_marks: 100,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 100 }),
-        order_num: 203,
-      },
-      {
-        role: 'HOI',
-        code: 'HOI_INST_INFRA_RESEARCH',
-        name: 'Campus Infrastructure & Research Grants',
-        section: 'INST',
-        description: 'Incubation centre establishment, modern labs, external research funding acquisition.',
-        target_criteria: 'Attain min 50 Lakhs research/consultancy funding',
-        max_marks: 100,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 100 }),
-        order_num: 204,
-      },
-      // HOI Self Performance (500 Marks)
-      {
-        role: 'HOI',
-        code: 'HOI_SELF_STRATEGIC',
-        name: 'Institutional Governance & Strategic Roadmap',
-        section: 'SELF',
-        description: 'Strategic 5-year vision implementation, compliance with statutory bodies (AICTE, UGC, University).',
-        target_criteria: '100% regulatory compliance and strategic milestones met',
-        max_marks: 150,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 150 }),
-        order_num: 205,
-      },
-      {
-        role: 'HOI',
-        code: 'HOI_SELF_FISCAL',
-        name: 'Fiscal Management & Financial Sustainability',
-        section: 'SELF',
-        description: 'Optimal budget allocation, revenue generation through self-finance initiatives and cost efficiency.',
-        target_criteria: 'Adherence to campus budget targets with surplus sustainability',
-        max_marks: 150,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 150 }),
-        order_num: 206,
-      },
-      {
-        role: 'HOI',
-        code: 'HOI_SELF_STAFF_DEV',
-        name: 'Leadership Development & Faculty Retention',
-        section: 'SELF',
-        description: 'Faculty retention rates, HOD performance reviews, leadership development programs.',
-        target_criteria: 'Faculty retention >= 90% and 100% HOD leadership reviews executed',
-        max_marks: 100,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 100 }),
-        order_num: 207,
-      },
-      {
-        role: 'HOI',
-        code: 'HOI_SELF_COMMUNITY_BRAND',
-        name: 'Brand Enhancement & Community Impact',
-        section: 'SELF',
-        description: 'Institutional visibility, public relations, CSR projects, and regional societal impact.',
-        target_criteria: 'Active regional CSR programs and sustained national branding campaigns',
-        max_marks: 100,
-        scoring_type: 'CUSTOM',
-        scoring_rules_json: JSON.stringify({ cap: 100 }),
-        order_num: 208,
-      },
-    ];
-
-    for (const cat of hoiCategories) {
-      insertCat.run(
-        cat.role,
-        cat.code,
-        cat.name,
-        cat.section,
-        cat.description,
-        cat.target_criteria,
-        cat.max_marks,
-        cat.scoring_type,
-        cat.scoring_rules_json,
-        cat.order_num
-      );
-    }
-  }
-
-  // Pre-seed some faculty submissions for demo user (Prof. Ananya Verma - ID 23) so charts & dashboards immediately look alive
-  const subCount = database.prepare('SELECT count(*) as count FROM faculty_submissions').get() as { count: number };
-  if (subCount.count === 0) {
-    const insertSub = database.prepare(`
-      INSERT INTO faculty_submissions
-      (user_id, category_id, session_id, target_input, achievement_input, details_json, calculated_score, claimed_score, approved_score, status, evidence_url, evidence_name, faculty_remarks, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const now = new Date().toISOString();
-    // 1. Lesson plan: 100% -> 50 marks (Approved)
-    insertSub.run(23, 1, 1, '100%', '100%', JSON.stringify({ sheetUrl: 'https://docs.google.com/spreadsheets/d/ctgroup-cse-lesson-plans' }), 50, 50, 50, 'APPROVED', 'https://docs.google.com/spreadsheets/d/ctgroup-cse-lesson-plans', 'Google Sheets Lesson Plan Verified', 'All 48 lectures completed according to syllabus.', now, now);
-
-    // 2. Result: 92% -> 120 marks (Approved)
-    insertSub.run(23, 2, 1, '90%+', '92.4%', JSON.stringify({ totalStudents: 65, passed: 60 }), 120, 120, 120, 'APPROVED', 'https://ctgroup.in/evidence/cse/results-sem6.pdf', 'University Results Gazette 2026.pdf', '60 out of 65 students cleared subject with 8 distinctions.', now, now);
-
-    // 3. Attendance: 88% -> 110 marks (Approved)
-    insertSub.run(23, 3, 1, '85%+', '88.5%', JSON.stringify({ totalClasses: 52, averageAttendance: 88.5 }), 110, 110, 110, 'APPROVED', 'https://ctgroup.in/evidence/cse/attendance-log.pdf', 'ERP Biometric Attendance Report.pdf', 'Consistent student attendance monitored weekly.', now, now);
-
-    // 4. Feedback: 4.6/5 -> 50 marks (Approved)
-    insertSub.run(23, 4, 1, '>=4.5', '4.65', JSON.stringify({ responsesCount: 58 }), 50, 50, 50, 'APPROVED', 'https://ctgroup.in/evidence/cse/student-feedback.pdf', 'Student Appraisal Summary 2026.pdf', '58 responses collected through anonymous institutional portal.', now, now);
-
-    // 5. Admissions: 12 admissions -> 24 marks (Submitted)
-    insertSub.run(23, 5, 1, '15 admissions', '12', JSON.stringify({ admissions: 12 }), 24, 24, null, 'SUBMITTED', 'https://ctgroup.in/evidence/cse/admissions-verification.pdf', 'Admissions Office Verification Slip.pdf', 'Organized 3 career counseling sessions at local senior secondary schools.', now, now);
-
-    // 6. Teaching Load: 100% -> 30 marks (Approved)
-    insertSub.run(23, 6, 1, '100%', '100%', JSON.stringify({ conducted: 14, allotted: 14 }), 30, 30, 30, 'APPROVED', 'https://ctgroup.in/evidence/cse/timetable-compliance.pdf', 'Time Table Compliance Certificate.pdf', 'No lecture cancellation; all alternate classes adjusted.', now, now);
-
-    // 7. Course File: 100% -> 20 marks (Approved)
-    insertSub.run(23, 7, 1, '100%', '100%', JSON.stringify({ isComplete: true }), 20, 20, 20, 'APPROVED', 'https://ctgroup.in/evidence/cse/course-file-index.pdf', 'Course File Audit Checklist.pdf', 'Verified and signed by departmental Academic Audit Committee.', now, now);
-
-    // 8. Publications: 2 Scopus papers -> 30 marks (Approved)
-    insertSub.run(23, 8, 1, '1 Scopus/year', '2', JSON.stringify({ publications: [{ title: 'Deep Learning for Edge IoT Networks', journal: 'IEEE Sensors Letters (Scopus)', doi: '10.1109/LENG.2026.1234567' }, { title: 'Adaptive Resource Allocation in 6G Edge', journal: 'Springer Computing (WoS)', doi: '10.1007/s00607-026-0123' }] }), 30, 30, 30, 'APPROVED', 'https://ctgroup.in/evidence/cse/ieee-paper-acceptance.pdf', 'Scopus Publication Certificates.pdf', 'Two indexed first-author research articles published in 2026.', now, now);
-
-    // Initial audit log
-    database.prepare(`
-      INSERT INTO audit_logs (user_id, action, record_type, record_id, details_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(20, 'SYSTEM_INITIALIZATION', 'SYSTEM', '1', JSON.stringify({ status: 'Database seeded with CT Group 1,000-mark framework' }), now);
   }
 }

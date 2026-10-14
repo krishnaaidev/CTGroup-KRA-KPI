@@ -16,10 +16,6 @@ export default function HomePage() {
   switch (user.role) {
     case 'ADMIN':
       redirect('/admin');
-    case 'HOD':
-      redirect('/hod');
-    case 'HOI':
-      redirect('/hoi');
     case 'FACULTY':
     default:
       redirect('/faculty');

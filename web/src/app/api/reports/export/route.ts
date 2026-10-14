@@ -88,60 +88,12 @@ export async function GET(req: NextRequest) {
       if (session.role === 'FACULTY') {
         summaryQuery += ' AND u.id = ?';
         sumParams.push(session.id);
-      } else if (session.role === 'HOD' && session.department_id) {
-        summaryQuery += ' AND u.department_id = ?';
-        sumParams.push(session.department_id);
       }
       summaryQuery += ' GROUP BY u.id ORDER BY Total_Approved_Marks DESC';
 
       const summaryData = db.prepare(summaryQuery).all(...sumParams);
       const wsSummary = XLSX.utils.json_to_sheet(summaryData);
       XLSX.utils.book_append_sheet(wb, wsSummary, 'Faculty_Summary');
-    }
-
-    // 2. HOD Evaluation Sheet (400 Dept + 600 Self = 1000 Marks)
-    if (type === 'hod' || type === 'all') {
-      const hodData = db.prepare(`
-        SELECT 
-          u.name as HOD_Name,
-          u.college_id as College_ID,
-          d.name as Department,
-          he.dept_score as Department_Score_Max_400,
-          he.self_score as Self_Score_Max_600,
-          he.total_score as Total_Score_Max_1000,
-          he.status as Evaluation_Status,
-          he.admin_remarks as Admin_Remarks,
-          he.submitted_at as Submitted_At
-        FROM users u
-        JOIN departments d ON u.id = d.hod_user_id
-        LEFT JOIN hod_evaluations he ON u.id = he.hod_id AND he.session_id = ?
-        WHERE u.role = 'HOD'
-      `).all(sessionId);
-
-      const wsHod = XLSX.utils.json_to_sheet(hodData);
-      XLSX.utils.book_append_sheet(wb, wsHod, 'HOD_Evaluations');
-    }
-
-    // 3. HOI Evaluation Sheet (500 Inst + 500 Self = 1000 Marks)
-    if (type === 'hoi' || type === 'all') {
-      const hoiData = db.prepare(`
-        SELECT 
-          u.name as HOI_Name,
-          u.college_id as College_ID,
-          u.designation as Designation,
-          he.inst_score as Institutional_Score_Max_500,
-          he.self_score as Self_Score_Max_500,
-          he.total_score as Total_Score_Max_1000,
-          he.status as Evaluation_Status,
-          he.authority_remarks as Authority_Remarks,
-          he.submitted_at as Submitted_At
-        FROM users u
-        LEFT JOIN hoi_evaluations he ON u.id = he.hoi_id AND he.session_id = ?
-        WHERE u.role = 'HOI'
-      `).all(sessionId);
-
-      const wsHoi = XLSX.utils.json_to_sheet(hoiData);
-      XLSX.utils.book_append_sheet(wb, wsHoi, 'HOI_Evaluations');
     }
 
     if (format === 'json') {

@@ -219,19 +219,19 @@ export default function AdminDashboard() {
 
           <div className="flex items-center space-x-3 self-end md:self-center no-print">
             <a
-              href="/api/reports/export?type=all"
+              href="/api/reports/export?type=faculty"
               download
               className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition"
             >
               <Download className="w-4 h-4 mr-1.5 text-blue-600" />
-              Download All Data (Excel)
+              Download Faculty Report (Excel)
             </a>
             <button
               onClick={() => setShowCreateUserModal(true)}
               className="inline-flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg text-xs font-semibold text-white shadow-sm transition"
             >
               <UserPlus className="w-4 h-4 mr-1.5" />
-              Add User / HOD / HOI
+              Add Faculty Member
             </button>
           </div>
         </div>
@@ -250,16 +250,16 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Registered</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Registered Faculties</span>
               <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                 <Users className="w-4 h-4" />
               </div>
             </div>
             <div className="mt-3 flex items-baseline space-x-2">
-              <span className="text-3xl font-extrabold text-slate-900">{userStats.total || users.length}</span>
-              <span className="text-xs text-slate-500 font-medium">All User Roles</span>
+              <span className="text-3xl font-extrabold text-slate-900">{userStats.total || 0}</span>
+              <span className="text-xs text-slate-500 font-medium">Faculty Members</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-2">Faculty, HODs, HOIs, Admins</p>
+            <p className="text-[11px] text-slate-500 mt-2">Registered in Portal</p>
           </div>
 
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
@@ -374,10 +374,8 @@ export default function AdminDashboard() {
                   className="px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white"
                 >
                   <option value="">All Roles</option>
-                  <option value="FACULTY">Faculty</option>
-                  <option value="HOD">HOD</option>
-                  <option value="HOI">HOI</option>
-                  <option value="ADMIN">Admin</option>
+                  <option value="FACULTY">Faculty Only</option>
+                  <option value="ADMIN">Admin Only</option>
                 </select>
 
                 <select
@@ -806,10 +804,8 @@ export default function AdminDashboard() {
                     onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value })}
                     className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white"
                   >
-                    <option value="FACULTY">Faculty</option>
-                    <option value="HOD">HOD (Head of Dept)</option>
-                    <option value="HOI">HOI (Head of Institution)</option>
-                    <option value="ADMIN">Administrator</option>
+                    <option value="FACULTY">Faculty Member</option>
+                    <option value="ADMIN">System Administrator</option>
                   </select>
                 </div>
               </div>

@@ -263,18 +263,23 @@ function seedInitialData(database: Database.Database) {
     `).run('2026-2027', 1, '2026-07-01', '2027-06-30', '2026-12-31');
   }
 
-  // 2. Seed Academic Departments
-  const deptCount = database.prepare('SELECT count(*) as count FROM departments').get() as { count: number };
-  if (deptCount.count === 0) {
-    const insertDept = database.prepare('INSERT INTO departments (name, code) VALUES (?, ?)');
-    insertDept.run('Computer Science & Engineering', 'CSE');
-    insertDept.run('Information Technology', 'IT');
-    insertDept.run('Mechanical Engineering', 'ME');
-    insertDept.run('Electronics & Communication', 'ECE');
-    insertDept.run('Management Studies', 'MBA');
-    insertDept.run('Pharmaceutical Sciences', 'PHARM');
-    insertDept.run('Hotel Management & Catering', 'HMCT');
-  }
+  // 2. Seed Academic Departments (CT Group Institutes)
+  const ctInstitutes = [
+    { code: 'CTIEMT', name: 'CT Institute of Engineering, Management & Technology' },
+    { code: 'CTIT', name: 'CT Institute of Technology' },
+    { code: 'CTIMT', name: 'CT Institute of Management & Technology' },
+    { code: 'CTIHM', name: 'CT Institute of Hotel Management' },
+    { code: 'CTIHS', name: 'CT Institute of Higher Studies' },
+    { code: 'CTPC', name: 'CT Polytechnic College' },
+    { code: 'CTCP', name: 'CT College of Pharmacy' },
+    { code: 'CTIPS', name: 'CT Institute of Pharmaceutical Sciences' },
+    { code: 'CTIL', name: 'CT Institute of Law' },
+  ];
+
+  const insertDept = database.prepare('INSERT OR IGNORE INTO departments (id, name, code) VALUES (?, ?, ?)');
+  ctInstitutes.forEach((inst, index) => {
+    insertDept.run(index + 1, inst.name, inst.code);
+  });
 
   // 3. Seed Default Clean Accounts for All 4 Roles
   const insertUser = database.prepare(`
@@ -317,26 +322,32 @@ function seedInitialData(database: Database.Database) {
     now
   );
 
-  // C. Head of Department (HOD CSE)
-  insertUser.run(
-    22,
-    'Prof. Harjit Verma (HOD CSE)',
-    'HOD_CSE',
-    'hod.cse@ctgroup.in',
-    '+91 98765 00002',
-    defaultPassHash,
-    'HOD',
-    1,
-    'Head of Department (CSE)',
-    'APPROVED',
-    now,
-    now
-  );
+  // C. Head of Departments for each of the 9 CT Group Institutes
+  ctInstitutes.forEach((inst, index) => {
+    const hodId = 30 + index;
+    const hodCollegeId = `HOD_${inst.code}`;
+    const hodEmail = `hod.${inst.code.toLowerCase()}@ctgroup.in`;
+    const hodName = index === 0 ? 'Prof. Harjit Verma (HOD CTIEMT)' : `HOD ${inst.code}`;
 
-  // Assign HOD to CSE Department
-  database.prepare('UPDATE departments SET hod_user_id = 22 WHERE id = 1').run();
+    insertUser.run(
+      hodId,
+      hodName,
+      hodCollegeId,
+      hodEmail,
+      '+91 98765 00002',
+      defaultPassHash,
+      'HOD',
+      index + 1,
+      `Head of Department (${inst.code})`,
+      'APPROVED',
+      now,
+      now
+    );
 
-  // D. Faculty (CSE)
+    database.prepare('UPDATE departments SET hod_user_id = ? WHERE id = ?').run(hodId, index + 1);
+  });
+
+  // D. Faculty (CTIEMT)
   insertUser.run(
     23,
     'Er. Suman Krishna (Faculty)',
@@ -345,8 +356,8 @@ function seedInitialData(database: Database.Database) {
     '+91 98765 00003',
     defaultPassHash,
     'FACULTY',
-    1,
-    'Assistant Professor (CSE)',
+    1, // CTIEMT
+    'Assistant Professor (CTIEMT)',
     'APPROVED',
     now,
     now

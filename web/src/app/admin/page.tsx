@@ -276,17 +276,14 @@ export default function AdminDashboard() {
     switch (status) {
       case 'SUBMITTED_TO_HOD':
       case 'SUBMITTED':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Tier 1: At HOD</span>;
-      case 'VERIFIED_BY_HOD':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">Tier 2: At HOI</span>;
-      case 'VERIFIED_BY_HOI':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">Tier 3: Ready for Director</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">Awaiting HOD</span>;
       case 'APPROVED':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Final Approved</span>;
+      case 'VERIFIED_BY_HOD':
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Approved by HOD</span>;
       case 'REJECTED':
       case 'REJECTED_BY_HOD':
       case 'REJECTED_BY_HOI':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">Rejected</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">Returned for Revision</span>;
       default:
         return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800">{status}</span>;
     }
@@ -303,13 +300,13 @@ export default function AdminDashboard() {
             <div>
               <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30 mb-3">
                 <Crown className="w-3.5 h-3.5 mr-1.5" />
-                Tier 4: Campus Director / Main Administrator Console
+                Director & Main Administrator Console
               </div>
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-                Institutional Authority & Performance Management
+                9 CT Group Institutes Executive Authority
               </h1>
               <p className="mt-1 text-slate-300 text-sm">
-                4-Tier Governance: Faculty Submission → HOD Verification → HOI Verification → Director Final Approval
+                Department Faculty Verified Directly by Respective HODs • Campus Leadership & Strategic Oversight
               </p>
             </div>
 
@@ -365,12 +362,7 @@ export default function AdminDashboard() {
             }`}
           >
             <Award className="w-4 h-4" />
-            <span>Director Final Approvals</span>
-            {pendingDirectorCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-800">
-                {pendingDirectorCount}
-              </span>
-            )}
+            <span>Institutional Performance & Audits</span>
           </button>
           <button
             onClick={() => setActiveTab('users')}

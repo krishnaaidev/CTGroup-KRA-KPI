@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       const stats = db.prepare(`
         SELECT 
           COUNT(DISTINCT u.id) as total_faculty,
-          COUNT(CASE WHEN fs.status = 'SUBMITTED' THEN 1 END) as pending_submissions,
+          COUNT(CASE WHEN fs.status = 'SUBMITTED' OR fs.status = 'SUBMITTED_TO_HOD' THEN 1 END) as pending_submissions,
           AVG(fs.calculated_score) as avg_score
         FROM users u
         LEFT JOIN faculty_submissions fs ON u.id = fs.user_id AND fs.session_id = ?

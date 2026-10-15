@@ -104,7 +104,7 @@ export default function LoginPage() {
           KRA & KPI Performance Management Portal
         </p>
         <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/20">
-          Tiered Verification: Faculty → HOD → HOI → Director
+          Faculty Verified Directly by Respective Department HOD
         </div>
       </div>
 

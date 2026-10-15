@@ -51,39 +51,36 @@ export async function POST(req: NextRequest) {
     let updateFields = '';
     const updateParams: any[] = [];
 
-    // 4-Tier Verification Hierarchy
+    // Verification Hierarchy: HOD is the sole and final authority for department faculty submissions
     if (session.role === 'HOD') {
-      // Tier 2: HOD Verification
       if (decision === 'APPROVE' || decision === 'VERIFY' || decision === 'APPROVED') {
-        newStatus = 'VERIFIED_BY_HOD';
-        updateFields = 'status = ?, hod_score = ?, hod_remarks = ?, hod_reviewed_at = ?, hod_reviewer_id = ?, updated_at = ?';
-        updateParams.push(newStatus, scoreVal, comments.trim() || 'Verified and recommended by HOD', now, session.id, now);
+        newStatus = 'APPROVED';
+        updateFields = 'status = ?, approved_score = ?, hod_score = ?, hod_remarks = ?, hod_reviewed_at = ?, hod_reviewer_id = ?, updated_at = ?';
+        updateParams.push(newStatus, scoreVal, scoreVal, comments.trim() || 'Verified and approved by Department HOD', now, session.id, now);
       } else {
         newStatus = 'REJECTED_BY_HOD';
         updateFields = 'status = ?, hod_remarks = ?, hod_reviewed_at = ?, hod_reviewer_id = ?, updated_at = ?';
-        updateParams.push(newStatus, comments.trim() || 'Returned by HOD for revisions', now, session.id, now);
+        updateParams.push(newStatus, comments.trim() || 'Returned by Department HOD for revisions', now, session.id, now);
       }
     } else if (session.role === 'HOI') {
-      // Tier 3: HOI Verification
       if (decision === 'APPROVE' || decision === 'VERIFY' || decision === 'APPROVED') {
-        newStatus = 'VERIFIED_BY_HOI';
-        updateFields = 'status = ?, hoi_score = ?, hoi_remarks = ?, hoi_reviewed_at = ?, hoi_reviewer_id = ?, updated_at = ?';
-        updateParams.push(newStatus, scoreVal, comments.trim() || 'Verified and forwarded to Director by HOI', now, session.id, now);
+        newStatus = 'APPROVED';
+        updateFields = 'status = ?, approved_score = ?, hoi_score = ?, hoi_remarks = ?, hoi_reviewed_at = ?, hoi_reviewer_id = ?, updated_at = ?';
+        updateParams.push(newStatus, scoreVal, scoreVal, comments.trim() || 'Verified and approved by HOI', now, session.id, now);
       } else {
         newStatus = 'REJECTED_BY_HOI';
         updateFields = 'status = ?, hoi_remarks = ?, hoi_reviewed_at = ?, hoi_reviewer_id = ?, updated_at = ?';
         updateParams.push(newStatus, comments.trim() || 'Returned by HOI for revisions', now, session.id, now);
       }
     } else if (session.role === 'ADMIN') {
-      // Tier 4: Director Final Institutional Approval
       if (decision === 'APPROVE' || decision === 'APPROVED') {
         newStatus = 'APPROVED';
         updateFields = 'status = ?, approved_score = ?, director_score = ?, director_remarks = ?, director_reviewed_at = ?, director_reviewer_id = ?, updated_at = ?';
-        updateParams.push(newStatus, scoreVal, scoreVal, comments.trim() || 'Final Institutional Approval by Director', now, session.id, now);
+        updateParams.push(newStatus, scoreVal, scoreVal, comments.trim() || 'Approved by Institutional Director', now, session.id, now);
       } else {
         newStatus = 'REJECTED';
         updateFields = 'status = ?, director_remarks = ?, director_reviewed_at = ?, director_reviewer_id = ?, updated_at = ?';
-        updateParams.push(newStatus, comments.trim() || 'Rejected by Director', now, session.id, now);
+        updateParams.push(newStatus, comments.trim() || 'Returned by Director', now, session.id, now);
       }
     }
 

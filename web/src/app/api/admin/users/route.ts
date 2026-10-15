@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const session = getSessionFromRequest(req);
-    if (!session || (session.role !== 'ADMIN' && session.role !== 'HOI')) {
-      return NextResponse.json({ error: 'Unauthorized: Admin or HOI access required.' }, { status: 403 });
+    if (!session || (session.role !== 'ADMIN' && session.role !== 'HOI' && session.role !== 'HOD')) {
+      return NextResponse.json({ error: 'Unauthorized: Reviewer privileges required.' }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -45,9 +45,10 @@ export async function GET(req: NextRequest) {
       params.push(status);
     }
 
-    if (departmentId) {
+    const effectiveDeptId = session.role === 'HOD' ? session.department_id : departmentId;
+    if (effectiveDeptId) {
       query += ` AND u.department_id = ?`;
-      params.push(parseInt(departmentId, 10));
+      params.push(parseInt(String(effectiveDeptId), 10));
     }
 
     query += ` ORDER BY u.created_at DESC`;

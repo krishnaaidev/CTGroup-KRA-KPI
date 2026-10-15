@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
         COUNT(DISTINCT fac.id) as faculty_count,
         COALESCE(AVG(fs.calculated_score), 0) as avg_score,
         COUNT(CASE WHEN fs.status = 'APPROVED' THEN 1 END) as approved_submissions,
-        COUNT(CASE WHEN fs.status = 'SUBMITTED' THEN 1 END) as pending_submissions
+        COUNT(CASE WHEN fs.status = 'SUBMITTED' OR fs.status = 'SUBMITTED_TO_HOD' THEN 1 END) as pending_submissions
       FROM departments d
       LEFT JOIN users u ON d.hod_user_id = u.id
       LEFT JOIN users fac ON d.id = fac.department_id AND fac.role = 'FACULTY'

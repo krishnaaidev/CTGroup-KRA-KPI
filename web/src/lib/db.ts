@@ -2,8 +2,8 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 
-// Resolve database path in the project directory
-const dbPath = path.join(process.cwd(), 'ctgroup_kpi.db');
+// Resolve database path in the project directory or persistent volume
+const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'ctgroup_kpi.db');
 let db: Database.Database;
 
 export function getDb(): Database.Database {

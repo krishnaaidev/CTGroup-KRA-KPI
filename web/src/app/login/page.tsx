@@ -38,9 +38,28 @@ export default function LoginPage() {
         body: JSON.stringify({ identifier, password }),
       });
 
-      const data = await res.json();
+      let data: any = null;
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+      }
+
       if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed. Please verify your credentials.');
+        if (data && data.error) {
+          throw new Error(data.error);
+        }
+        if (res.status === 502 || res.status === 503 || res.status === 504) {
+          throw new Error('Cloud server is currently starting up. Please wait 15-30 seconds and try again.');
+        }
+        throw new Error(`Authentication server error (HTTP ${res.status}). Please check credentials.`);
+      }
+
+      if (!data || !data.user) {
+        throw new Error('Invalid response received from authentication server.');
       }
 
       // 4-Tier Role-Based Navigation

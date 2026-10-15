@@ -34,7 +34,7 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
-    public static final String DEFAULT_PORTAL_URL = "https://ctgroup-kra-kpi.onrender.com";
+    public static final String DEFAULT_PORTAL_URL = "https://tale-office-friend-confirmed.trycloudflare.com";
     private static final String PREF_NAME = "ctgroup_prefs";
     private static final String PREF_KEY_URL = "server_url";
     private static final int FILE_CHOOSER_REQUEST_CODE = 2026;

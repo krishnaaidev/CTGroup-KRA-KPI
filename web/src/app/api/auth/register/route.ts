@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, college_id, email, phone, department_id, designation, password } = body;
+    const { name, college_id, email, phone, role = 'FACULTY', department_id, designation, password } = body;
 
     // Validation
     if (!name || !college_id || !email || !password || !designation) {
@@ -22,6 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Password must be at least 6 characters long.' }, { status: 400 });
     }
 
+    const assignedRole = ['FACULTY', 'HOD', 'HOI'].includes(role) ? role : 'FACULTY';
     const db = getDb();
 
     // Check duplicate email or college_id
@@ -40,13 +43,14 @@ export async function POST(req: NextRequest) {
 
     const insertResult = db.prepare(`
       INSERT INTO users (name, college_id, email, phone, password_hash, role, department_id, designation, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, 'FACULTY', ?, ?, 'PENDING_APPROVAL', ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL', ?, ?)
     `).run(
       name.trim(),
       college_id.trim(),
       email.toLowerCase().trim(),
       phone || '',
       passwordHash,
+      assignedRole,
       department_id ? parseInt(department_id, 10) : null,
       designation.trim(),
       now,
@@ -62,17 +66,17 @@ export async function POST(req: NextRequest) {
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
       newUserId,
-      'FACULTY_REGISTRATION',
+      'USER_REGISTRATION',
       'USER',
       String(newUserId),
-      JSON.stringify({ name, email, college_id, department_id, designation }),
+      JSON.stringify({ name, email, college_id, role: assignedRole, department_id, designation }),
       clientIp,
       now
     );
 
     return NextResponse.json({
       success: true,
-      message: 'Registration submitted successfully! Your account is currently pending Admin approval.',
+      message: `Registration for ${assignedRole} submitted successfully! Your account is currently pending Administrator approval.`,
       userId: newUserId,
     });
   } catch (error: any) {

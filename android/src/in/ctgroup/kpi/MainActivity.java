@@ -1,7 +1,10 @@
 package in.ctgroup.kpi;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -23,6 +26,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -30,7 +34,9 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
-    public static final String PORTAL_URL = "https://finishing-mistress-sign-punk.trycloudflare.com";
+    public static final String DEFAULT_PORTAL_URL = "https://ctgroup-kra-kpi.onrender.com";
+    private static final String PREF_NAME = "ctgroup_prefs";
+    private static final String PREF_KEY_URL = "server_url";
     private static final int FILE_CHOOSER_REQUEST_CODE = 2026;
 
     private WebView webView;
@@ -39,6 +45,7 @@ public class MainActivity extends Activity {
     private TextView errorTitle;
     private TextView errorMessage;
     private Button retryButton;
+    private Button changeUrlButton;
     private ValueCallback<Uri[]> uploadMessageCallback;
     private long lastBackPressTime = 0;
 
@@ -46,7 +53,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Global crash guard to prevent unexpected terminations
+        // Global crash guard
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread thread, final Throwable throwable) {
@@ -67,8 +74,11 @@ public class MainActivity extends Activity {
         errorTitle = findViewById(R.id.errorTitle);
         errorMessage = findViewById(R.id.errorMessage);
         retryButton = findViewById(R.id.retryButton);
+        changeUrlButton = findViewById(R.id.changeUrlButton);
 
         setupWebView();
+
+        final String activeUrl = getServerUrl();
 
         retryButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -80,27 +90,87 @@ public class MainActivity extends Activity {
                 errorLayout.setVisibility(View.GONE);
                 if (webView != null) {
                     webView.setVisibility(View.VISIBLE);
-                    if (webView.getUrl() != null && !webView.getUrl().isEmpty()) {
-                        webView.reload();
-                    } else {
-                        webView.loadUrl(PORTAL_URL);
-                    }
+                    webView.loadUrl(getServerUrl());
                 } else {
                     setupWebView();
-                    webView.loadUrl(PORTAL_URL);
+                    webView.loadUrl(getServerUrl());
                 }
             }
         });
 
+        if (changeUrlButton != null) {
+            changeUrlButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showChangeUrlDialog();
+                }
+            });
+        }
+
         if (!isNetworkConnected()) {
-            showErrorView("No internet connection. Please connect to Wi-Fi or mobile data and tap Reconnect.");
+            showErrorView("No internet connection detected. Please connect to Wi-Fi or cellular network and tap Reconnect.");
         } else {
             if (savedInstanceState != null) {
                 webView.restoreState(savedInstanceState);
             } else {
-                webView.loadUrl(PORTAL_URL);
+                webView.loadUrl(activeUrl);
             }
         }
+    }
+
+    private String getServerUrl() {
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        return prefs.getString(PREF_KEY_URL, DEFAULT_PORTAL_URL);
+    }
+
+    private void saveServerUrl(String url) {
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        prefs.edit().putString(PREF_KEY_URL, url).apply();
+    }
+
+    private void showChangeUrlDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Server Configuration");
+        builder.setMessage("Enter the CT Group KRA & KPI Portal URL (Cloud or Local):");
+
+        final EditText input = new EditText(this);
+        input.setText(getServerUrl());
+        input.setSingleLine(true);
+        builder.setView(input);
+
+        builder.setPositiveButton("Connect", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String newUrl = input.getText().toString().trim();
+                if (!newUrl.isEmpty()) {
+                    if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
+                        newUrl = "https://" + newUrl;
+                    }
+                    saveServerUrl(newUrl);
+                    Toast.makeText(MainActivity.this, "Connecting to: " + newUrl, Toast.LENGTH_SHORT).show();
+                    errorLayout.setVisibility(View.GONE);
+                    if (webView != null) {
+                        webView.setVisibility(View.VISIBLE);
+                        webView.loadUrl(newUrl);
+                    }
+                }
+            }
+        });
+
+        builder.setNegativeButton("Default Render Cloud", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                saveServerUrl(DEFAULT_PORTAL_URL);
+                Toast.makeText(MainActivity.this, "Reset to Render Cloud URL", Toast.LENGTH_SHORT).show();
+                errorLayout.setVisibility(View.GONE);
+                if (webView != null) {
+                    webView.setVisibility(View.VISIBLE);
+                    webView.loadUrl(DEFAULT_PORTAL_URL);
+                }
+            }
+        });
+
+        builder.show();
     }
 
     private boolean isNetworkConnected() {
@@ -143,7 +213,6 @@ public class MainActivity extends Activity {
         settings.setDisplayZoomControls(false);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
-        // Cookies
         try {
             CookieManager cookieManager = CookieManager.getInstance();
             cookieManager.setAcceptCookie(true);
@@ -163,23 +232,22 @@ public class MainActivity extends Activity {
                 if (progressBar != null) progressBar.setVisibility(View.GONE);
             }
 
-            // CRITICAL: Prevents app process termination when live server closes
             @Override
             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
-                showErrorView("Connection to live server was interrupted. Tap Reconnect to restart.");
-                return true; // Return true so Android does NOT terminate the application
+                showErrorView("Connection to server was interrupted. Tap Reconnect to restart.");
+                return true;
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 if (request != null && request.isForMainFrame()) {
-                    showErrorView("Live Portal is currently unreachable.\nThe server is currently off or rebooting.\nTap Reconnect when live.");
+                    showErrorView("Portal is currently unreachable.\nCheck your internet or verify server address.");
                 }
             }
 
             @Override
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
-                showErrorView("Unable to connect to live portal (" + description + ").\nTap Reconnect once server is live.");
+                showErrorView("Unable to connect to portal (" + description + ").\nTap Reconnect or Change Server URL.");
             }
 
             @Override
@@ -187,7 +255,7 @@ public class MainActivity extends Activity {
                 if (request != null && request.isForMainFrame()) {
                     int statusCode = (errorResponse != null) ? errorResponse.getStatusCode() : 0;
                     if (statusCode >= 400) {
-                        showErrorView("Server is currently off (HTTP " + statusCode + ").\nPlease turn on the live server and tap Reconnect.");
+                        showErrorView("Server returned HTTP " + statusCode + ".\nPlease verify server status and tap Reconnect.");
                     }
                 }
             }

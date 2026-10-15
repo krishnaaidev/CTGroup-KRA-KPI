@@ -1,18 +1,23 @@
-export type UserRole = 'ADMIN' | 'FACULTY';
+export type UserRole = 'ADMIN' | 'HOI' | 'HOD' | 'FACULTY';
 export type UserStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
 
 export type SubmissionStatus = 
   | 'DRAFT' 
-  | 'SUBMITTED' 
-  | 'UNDER_REVIEW' 
-  | 'APPROVED' 
-  | 'REJECTED' 
-  | 'RESUBMITTED';
+  | 'SUBMITTED' // Legacy / General
+  | 'SUBMITTED_TO_HOD' // Tier 1: Faculty submitted -> waiting for HOD verification
+  | 'VERIFIED_BY_HOD'  // Tier 2: HOD verified -> forwarded to HOI
+  | 'REJECTED_BY_HOD'  // Tier 2: HOD rejected -> sent back to faculty for correction
+  | 'VERIFIED_BY_HOI'  // Tier 3: HOI verified -> forwarded to Director
+  | 'REJECTED_BY_HOI'  // Tier 3: HOI rejected -> sent back
+  | 'APPROVED'         // Tier 4: Director Final Institutional Approval
+  | 'REJECTED'         // Tier 4: Director Rejected
+  | 'RESUBMITTED'
+  | 'UNDER_REVIEW';
 
 export interface User {
   id: number;
   name: string;
-  college_id: string; // e.g. "20", "CT-FAC-101"
+  college_id: string; // e.g. "20", "CT-FAC-101", "HOD_CSE"
   email: string;
   phone: string;
   password_hash: string;
@@ -85,8 +90,26 @@ export interface FacultySubmission {
   evidence_url: string | null;
   evidence_name: string | null;
   faculty_remarks: string | null;
+
+  // Multi-tier verification trail
+  hod_score?: number | null;
+  hod_remarks?: string | null;
+  hod_reviewed_at?: string | null;
+  hod_reviewer_id?: number | null;
+
+  hoi_score?: number | null;
+  hoi_remarks?: string | null;
+  hoi_reviewed_at?: string | null;
+  hoi_reviewer_id?: number | null;
+
+  director_score?: number | null;
+  director_remarks?: string | null;
+  director_reviewed_at?: string | null;
+  director_reviewer_id?: number | null;
+
   created_at: string;
   updated_at: string;
+  
   // Joins
   category?: EvaluationCategory;
   user?: User;
@@ -98,6 +121,7 @@ export interface Review {
   submission_id: number;
   reviewer_id: number;
   reviewer_name?: string;
+  reviewer_role?: UserRole;
   previous_status: SubmissionStatus;
   new_status: SubmissionStatus;
   comments: string;
@@ -137,9 +161,21 @@ export interface HodEvaluation {
   self_score: number;
   total_score: number;
   status: SubmissionStatus;
-  admin_remarks: string | null;
+  details_json?: string;
+  evidence_url?: string | null;
+  evidence_name?: string | null;
+  hod_remarks?: string | null;
+  hoi_remarks?: string | null;
+  hoi_score?: number | null;
+  hoi_reviewed_at?: string | null;
+  director_remarks?: string | null;
+  director_reviewed_at?: string | null;
   submitted_at: string | null;
   reviewed_at: string | null;
+
+  // Joined fields
+  hod_name?: string;
+  department_name?: string;
 }
 
 export interface HoiEvaluation {
@@ -150,7 +186,33 @@ export interface HoiEvaluation {
   self_score: number;
   total_score: number;
   status: SubmissionStatus;
-  authority_remarks: string | null;
+  details_json?: string;
+  evidence_url?: string | null;
+  evidence_name?: string | null;
+  hoi_remarks?: string | null;
+  director_remarks?: string | null;
+  director_reviewed_at?: string | null;
   submitted_at: string | null;
   reviewed_at: string | null;
+
+  // Joined fields
+  hoi_name?: string;
+}
+
+export interface GoogleDbConfig {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
+  databaseUrl?: string;
+  isConfigured: boolean;
+}
+
+export interface GoogleDbStatus {
+  connected: boolean;
+  projectId: string;
+  syncedCollections: string[];
+  totalRecords: number;
+  lastSyncTime: string | null;
+  mode: 'LIVE_GOOGLE_FIRESTORE' | 'EMBEDDED_LOCAL_DB';
+  message: string;
 }

@@ -25,6 +25,7 @@ public final class R {
     public static final int progressBar=0x7f030003;
     public static final int retryButton=0x7f030004;
     public static final int webview=0x7f030005;
+    public static final int changeUrlButton=0x7f030006;
   }
   public static final class layout {
     public static final int activity_main=0x7f040000;

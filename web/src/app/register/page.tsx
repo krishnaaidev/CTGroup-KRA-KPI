@@ -24,6 +24,7 @@ export default function RegisterPage() {
     college_id: '',
     email: '',
     phone: '',
+    role: 'FACULTY',
     department_id: '',
     designation: 'Assistant Professor',
     password: '',
@@ -209,7 +210,26 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    Institutional Role *
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <select
+                      name="role"
+                      required
+                      value={formData.role}
+                      onChange={handleChange}
+                      className="block w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-white font-medium"
+                    >
+                      <option value="FACULTY">Faculty Member</option>
+                      <option value="HOD">Head of Department (HOD)</option>
+                      <option value="HOI">Head of Institution (HOI)</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
                     Department *
@@ -217,12 +237,12 @@ export default function RegisterPage() {
                   <div className="mt-1 relative rounded-md shadow-sm">
                     <select
                       name="department_id"
-                      required
+                      required={formData.role !== 'HOI'}
                       value={formData.department_id}
                       onChange={handleChange}
                       className="block w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-white"
                     >
-                      <option value="">Select Department...</option>
+                      <option value="">{formData.role === 'HOI' ? 'Campus Wide / All' : 'Select Department...'}</option>
                       {departments.map((dept) => (
                         <option key={dept.id} value={dept.id}>
                           {dept.name} ({dept.code})
@@ -237,19 +257,15 @@ export default function RegisterPage() {
                     Designation *
                   </label>
                   <div className="mt-1 relative rounded-md shadow-sm">
-                    <select
+                    <input
+                      type="text"
                       name="designation"
                       required
                       value={formData.designation}
                       onChange={handleChange}
+                      placeholder="e.g. Assistant Professor"
                       className="block w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-white"
-                    >
-                      <option value="Assistant Professor">Assistant Professor</option>
-                      <option value="Assistant Professor (Senior Scale)">Assistant Professor (Senior Scale)</option>
-                      <option value="Associate Professor">Associate Professor</option>
-                      <option value="Professor">Professor</option>
-                      <option value="Lab Instructor / Technical Assistant">Lab Instructor / Technical Assistant</option>
-                    </select>
+                    />
                   </div>
                 </div>
               </div>

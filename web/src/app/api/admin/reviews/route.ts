@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const session = getSessionFromRequest(req);
@@ -13,11 +15,7 @@ export async function POST(req: NextRequest) {
     const { submissionId, decision, approvedScore, comments = '' } = body;
 
     if (!submissionId || !decision) {
-      return NextResponse.json({ error: 'Submission ID and decision (APPROVED / REJECTED) are required.' }, { status: 400 });
-    }
-
-    if (!['APPROVED', 'REJECTED'].includes(decision)) {
-      return NextResponse.json({ error: 'Decision must be APPROVED or REJECTED.' }, { status: 400 });
+      return NextResponse.json({ error: 'Submission ID and decision are required.' }, { status: 400 });
     }
 
     const db = getDb();
@@ -33,40 +31,66 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Submission not found.' }, { status: 404 });
     }
 
-    // Security Check (PRD Section 8):
-    // "Prevent faculty from approving their own evaluations"
+    // Security Check: Prevent faculty from verifying their own evaluations
     if (submission.user_id === session.id) {
-      return NextResponse.json({ error: 'Security Violation: Evaluators cannot approve their own submissions.' }, { status: 403 });
+      return NextResponse.json({ error: 'Security Violation: Evaluators cannot verify their own submissions.' }, { status: 403 });
     }
 
-    // HOD check: HOD can only review faculty in their own department
-    if (session.role === 'HOD' && submission.faculty_dept_id !== session.department_id) {
+    // Department check for HOD: HOD can only review faculty in their own department
+    if (session.role === 'HOD' && session.department_id && submission.faculty_dept_id !== session.department_id) {
       return NextResponse.json({ error: 'Unauthorized: HOD can only review submissions from their department.' }, { status: 403 });
     }
 
     const previousStatus = submission.status;
-    let finalApprovedScore = 0;
-
-    if (decision === 'APPROVED') {
-      finalApprovedScore = approvedScore !== undefined && approvedScore !== null
-        ? Math.min(Math.max(0, parseFloat(approvedScore)), submission.max_marks)
-        : submission.calculated_score;
-    } else {
-      finalApprovedScore = 0;
-    }
+    const scoreVal = approvedScore !== undefined && approvedScore !== null
+      ? Math.min(Math.max(0, parseFloat(approvedScore)), submission.max_marks)
+      : (submission.claimed_score || submission.calculated_score);
 
     const now = new Date().toISOString();
+    let newStatus = previousStatus;
+    let updateFields = '';
+    const updateParams: any[] = [];
 
-    // Update submission
-    db.prepare(`
-      UPDATE faculty_submissions
-      SET status = ?,
-          approved_score = ?,
-          updated_at = ?
-      WHERE id = ?
-    `).run(decision, decision === 'APPROVED' ? finalApprovedScore : null, now, submissionId);
+    // 4-Tier Verification Hierarchy
+    if (session.role === 'HOD') {
+      // Tier 2: HOD Verification
+      if (decision === 'APPROVE' || decision === 'VERIFY' || decision === 'APPROVED') {
+        newStatus = 'VERIFIED_BY_HOD';
+        updateFields = 'status = ?, hod_score = ?, hod_remarks = ?, hod_reviewed_at = ?, hod_reviewer_id = ?, updated_at = ?';
+        updateParams.push(newStatus, scoreVal, comments.trim() || 'Verified and recommended by HOD', now, session.id, now);
+      } else {
+        newStatus = 'REJECTED_BY_HOD';
+        updateFields = 'status = ?, hod_remarks = ?, hod_reviewed_at = ?, hod_reviewer_id = ?, updated_at = ?';
+        updateParams.push(newStatus, comments.trim() || 'Returned by HOD for revisions', now, session.id, now);
+      }
+    } else if (session.role === 'HOI') {
+      // Tier 3: HOI Verification
+      if (decision === 'APPROVE' || decision === 'VERIFY' || decision === 'APPROVED') {
+        newStatus = 'VERIFIED_BY_HOI';
+        updateFields = 'status = ?, hoi_score = ?, hoi_remarks = ?, hoi_reviewed_at = ?, hoi_reviewer_id = ?, updated_at = ?';
+        updateParams.push(newStatus, scoreVal, comments.trim() || 'Verified and forwarded to Director by HOI', now, session.id, now);
+      } else {
+        newStatus = 'REJECTED_BY_HOI';
+        updateFields = 'status = ?, hoi_remarks = ?, hoi_reviewed_at = ?, hoi_reviewer_id = ?, updated_at = ?';
+        updateParams.push(newStatus, comments.trim() || 'Returned by HOI for revisions', now, session.id, now);
+      }
+    } else if (session.role === 'ADMIN') {
+      // Tier 4: Director Final Institutional Approval
+      if (decision === 'APPROVE' || decision === 'APPROVED') {
+        newStatus = 'APPROVED';
+        updateFields = 'status = ?, approved_score = ?, director_score = ?, director_remarks = ?, director_reviewed_at = ?, director_reviewer_id = ?, updated_at = ?';
+        updateParams.push(newStatus, scoreVal, scoreVal, comments.trim() || 'Final Institutional Approval by Director', now, session.id, now);
+      } else {
+        newStatus = 'REJECTED';
+        updateFields = 'status = ?, director_remarks = ?, director_reviewed_at = ?, director_reviewer_id = ?, updated_at = ?';
+        updateParams.push(newStatus, comments.trim() || 'Rejected by Director', now, session.id, now);
+      }
+    }
 
-    // Insert Review Record
+    updateParams.push(submissionId);
+    db.prepare(`UPDATE faculty_submissions SET ${updateFields} WHERE id = ?`).run(...updateParams);
+
+    // Record review step in reviews audit table
     db.prepare(`
       INSERT INTO reviews (submission_id, reviewer_id, previous_status, new_status, comments, approved_score, reviewed_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -74,28 +98,29 @@ export async function POST(req: NextRequest) {
       submissionId,
       session.id,
       previousStatus,
-      decision,
-      comments.trim() || (decision === 'APPROVED' ? 'Approved by reviewer.' : 'Evidence insufficient. Needs revision.'),
-      finalApprovedScore,
+      newStatus,
+      comments.trim() || `Processed by ${session.role}`,
+      scoreVal,
       now
     );
 
-    // Audit log
+    // Record audit log
     db.prepare(`
       INSERT INTO audit_logs (user_id, action, record_type, record_id, details_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
       session.id,
-      decision === 'APPROVED' ? 'SUBMISSION_APPROVED' : 'SUBMISSION_REJECTED',
+      `SUBMISSION_${newStatus}`,
       'FACULTY_SUBMISSION',
       String(submissionId),
       JSON.stringify({
         submissionId,
         categoryName: submission.category_name,
         facultyName: submission.faculty_name,
+        reviewerRole: session.role,
         previousStatus,
-        newStatus: decision,
-        approvedScore: finalApprovedScore,
+        newStatus,
+        awardedScore: scoreVal,
         comments,
       }),
       now
@@ -103,9 +128,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      decision,
-      approvedScore: finalApprovedScore,
-      message: `Submission for ${submission.category_name} successfully ${decision.toLowerCase()}!`,
+      newStatus,
+      awardedScore: scoreVal,
+      message: `Evaluation for ${submission.category_name} successfully updated to "${newStatus}"!`,
     });
   } catch (error: any) {
     console.error('Review error:', error);

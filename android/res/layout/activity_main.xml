@@ -64,6 +64,19 @@
             android:textColor="#ffffff"
             android:textSize="15sp"
             android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/changeUrlButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="#e2e8f0"
+            android:paddingLeft="24dp"
+            android:paddingRight="24dp"
+            android:text="Change Server URL"
+            android:textColor="#334155"
+            android:textSize="13sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
 </RelativeLayout>

@@ -183,24 +183,33 @@ export default function FacultyDashboard() {
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case 'APPROVED':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300"><CheckCircle2 className="w-3 h-3 mr-1" /> Approved</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"><CheckCircle2 className="w-3 h-3 mr-1" /> Approved by Director</span>;
+      case 'VERIFIED_BY_HOI':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300"><Clock className="w-3 h-3 mr-1" /> Verified by HOI (At Director)</span>;
+      case 'VERIFIED_BY_HOD':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300"><Clock className="w-3 h-3 mr-1" /> Verified by HOD (At HOI)</span>;
+      case 'SUBMITTED_TO_HOD':
       case 'SUBMITTED':
       case 'RESUBMITTED':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300"><Clock className="w-3 h-3 mr-1" /> Under Review</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300"><Clock className="w-3 h-3 mr-1" /> Submitted to HOD</span>;
+      case 'REJECTED_BY_HOD':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300"><AlertCircle className="w-3 h-3 mr-1" /> Revision Needed (HOD)</span>;
+      case 'REJECTED_BY_HOI':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300"><AlertCircle className="w-3 h-3 mr-1" /> Revision Needed (HOI)</span>;
       case 'REJECTED':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-300"><AlertCircle className="w-3 h-3 mr-1" /> Action Required</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300"><AlertCircle className="w-3 h-3 mr-1" /> Rejected by Director</span>;
       case 'DRAFT':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300">Draft</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300">Draft</span>;
       default:
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200">Not Started</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">Not Started</span>;
     }
   };
 
   const filteredCategories = categories.filter(c => {
     if (filterStatus === 'ALL') return true;
     if (filterStatus === 'APPROVED') return c.submission_status === 'APPROVED';
-    if (filterStatus === 'PENDING') return c.submission_status === 'SUBMITTED' || c.submission_status === 'RESUBMITTED';
-    if (filterStatus === 'REJECTED') return c.submission_status === 'REJECTED';
+    if (filterStatus === 'PENDING') return ['SUBMITTED_TO_HOD', 'SUBMITTED', 'RESUBMITTED', 'VERIFIED_BY_HOD', 'VERIFIED_BY_HOI'].includes(c.submission_status);
+    if (filterStatus === 'REJECTED') return ['REJECTED_BY_HOD', 'REJECTED_BY_HOI', 'REJECTED'].includes(c.submission_status);
     if (filterStatus === 'NOT_SUBMITTED') return !c.submission_status || c.submission_status === 'DRAFT';
     return true;
   });

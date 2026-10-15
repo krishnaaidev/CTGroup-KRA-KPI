@@ -3,6 +3,8 @@ import { getDb } from '@/lib/db';
 import { getSessionFromRequest, getUserById } from '@/lib/auth';
 import { computeFacultyScore } from '@/lib/scoringEngine';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const session = getSessionFromRequest(req);
@@ -14,17 +16,17 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const requestedUserId = searchParams.get('userId');
     const departmentId = searchParams.get('departmentId');
+    const statusFilter = searchParams.get('status');
     const sessionId = searchParams.get('sessionId') || '1';
 
     let targetUserId = session.id;
 
-    // RBAC check: only ADMIN or HOD of department can view other users' submissions
+    // RBAC check: only ADMIN, HOI, or HOD of department can view other users' submissions
     if (requestedUserId) {
       const parsedReqUserId = parseInt(requestedUserId, 10);
       if (session.role === 'ADMIN' || session.role === 'HOI') {
         targetUserId = parsedReqUserId;
       } else if (session.role === 'HOD') {
-        // verify target user is in same department
         const targetUser = getUserById(parsedReqUserId);
         if (targetUser && targetUser.department_id === session.department_id) {
           targetUserId = parsedReqUserId;
@@ -36,13 +38,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // If HOD or Admin wants department-wide list of all faculty submissions:
-    const viewAllInDept = searchParams.get('viewAll') === 'true';
-    if (viewAllInDept && (session.role === 'ADMIN' || session.role === 'HOD' || session.role === 'HOI')) {
+    // Department-wide or Institution-wide list for HOD, HOI, Admin
+    const viewAll = searchParams.get('viewAll') === 'true';
+    if (viewAll && (session.role === 'ADMIN' || session.role === 'HOD' || session.role === 'HOI')) {
       let deptQuery = `
         SELECT fs.*, 
                ec.name as category_name, ec.code as category_code, ec.max_marks, ec.target_criteria, ec.scoring_type, ec.order_num,
-               u.name as faculty_name, u.college_id as faculty_college_id, u.email as faculty_email, d.name as department_name
+               u.name as faculty_name, u.college_id as faculty_college_id, u.email as faculty_email, d.name as department_name, d.id as department_id
         FROM faculty_submissions fs
         JOIN evaluation_categories ec ON fs.category_id = ec.id
         JOIN users u ON fs.user_id = u.id
@@ -59,6 +61,11 @@ export async function GET(req: NextRequest) {
         deptParams.push(parseInt(departmentId, 10));
       }
 
+      if (statusFilter) {
+        deptQuery += ' AND fs.status = ?';
+        deptParams.push(statusFilter);
+      }
+
       deptQuery += ' ORDER BY u.name ASC, ec.order_num ASC';
       const allSubmissions = db.prepare(deptQuery).all(...deptParams);
 
@@ -68,7 +75,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Default: Fetch all categories for target user and join existing submissions
+    // Default: Fetch all 17 categories for target user and join existing submissions
     const categories = db.prepare(`
       SELECT ec.*, 
              fs.id as submission_id,
@@ -82,6 +89,15 @@ export async function GET(req: NextRequest) {
              fs.evidence_url,
              fs.evidence_name,
              fs.faculty_remarks,
+             fs.hod_score,
+             fs.hod_remarks,
+             fs.hod_reviewed_at,
+             fs.hoi_score,
+             fs.hoi_remarks,
+             fs.hoi_reviewed_at,
+             fs.director_score,
+             fs.director_remarks,
+             fs.director_reviewed_at,
              fs.updated_at as submission_updated_at
       FROM evaluation_categories ec
       LEFT JOIN faculty_submissions fs 
@@ -98,35 +114,33 @@ export async function GET(req: NextRequest) {
     let completedCount = 0;
 
     for (const item of categories) {
-      totalMaxMarks += item.max_marks;
-      if (item.submission_id) {
+      totalMaxMarks += item.max_marks || 0;
+      if (item.submission_id && item.submission_status && item.submission_status !== 'DRAFT') {
+        completedCount++;
         totalCalculated += item.calculated_score || 0;
         totalClaimed += item.claimed_score || 0;
         if (item.approved_score !== null && item.approved_score !== undefined) {
           totalApproved += item.approved_score;
         }
-        if (item.submission_status === 'APPROVED' || item.submission_status === 'SUBMITTED' || item.submission_status === 'UNDER_REVIEW') {
-          completedCount++;
-        }
       }
     }
 
-    // Fetch latest reviews for this user's submissions
+    // Fetch review history for this user's submissions
     const reviews = db.prepare(`
-      SELECT r.*, u.name as reviewer_name, fs.category_id
+      SELECT r.*, u.name as reviewer_name, ec.name as category_name
       FROM reviews r
       JOIN faculty_submissions fs ON r.submission_id = fs.id
+      JOIN evaluation_categories ec ON fs.category_id = ec.id
       JOIN users u ON r.reviewer_id = u.id
-      WHERE fs.user_id = ?
+      WHERE fs.user_id = ? AND fs.session_id = ?
       ORDER BY r.reviewed_at DESC
-    `).all(targetUserId);
+    `).all(targetUserId, sessionId);
 
     return NextResponse.json({
       success: true,
-      targetUserId,
       categories,
       metrics: {
-        totalMaxMarks, // 1000
+        totalMaxMarks,
         totalCalculated: Math.round(totalCalculated * 100) / 100,
         totalClaimed: Math.round(totalClaimed * 100) / 100,
         totalApproved: Math.round(totalApproved * 100) / 100,
@@ -179,11 +193,9 @@ export async function POST(req: NextRequest) {
       WHERE user_id = ? AND category_id = ? AND session_id = ?
     `).get(session.id, categoryId, sessionId) as any;
 
-    // Security Check (PRD Section 8):
-    // "Prevent faculty from approving their own evaluations or modifying approved scores"
     if (existing && existing.status === 'APPROVED' && session.role !== 'ADMIN') {
       return NextResponse.json({
-        error: 'This evaluation item has already been Approved by the administration and cannot be modified.',
+        error: 'This evaluation item has already received Final Institutional Approval and cannot be modified.',
       }, { status: 403 });
     }
 
@@ -200,7 +212,8 @@ export async function POST(req: NextRequest) {
       ? Math.min(parseFloat(claimedScore) || 0, category.max_marks)
       : calculatedScore;
 
-    const newStatus = action === 'DRAFT' ? 'DRAFT' : (existing && existing.status === 'REJECTED' ? 'RESUBMITTED' : 'SUBMITTED');
+    // Status progression: Submitting sends to HOD
+    const newStatus = action === 'DRAFT' ? 'DRAFT' : 'SUBMITTED_TO_HOD';
     const now = new Date().toISOString();
 
     let submissionId: number;
@@ -220,8 +233,8 @@ export async function POST(req: NextRequest) {
             updated_at = ?
         WHERE id = ?
       `).run(
-        String(targetInput || ''),
-        String(achievementInput || ''),
+        targetInput,
+        achievementInput,
         JSON.stringify(details),
         calculatedScore,
         finalClaimedScore,
@@ -234,16 +247,20 @@ export async function POST(req: NextRequest) {
       );
       submissionId = existing.id;
     } else {
-      const result = db.prepare(`
-        INSERT INTO faculty_submissions
-        (user_id, category_id, session_id, target_input, achievement_input, details_json, calculated_score, claimed_score, status, evidence_url, evidence_name, faculty_remarks, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      const insertResult = db.prepare(`
+        INSERT INTO faculty_submissions (
+          user_id, category_id, session_id,
+          target_input, achievement_input, details_json,
+          calculated_score, claimed_score, status,
+          evidence_url, evidence_name, faculty_remarks,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         session.id,
         categoryId,
         sessionId,
-        String(targetInput || ''),
-        String(achievementInput || ''),
+        targetInput,
+        achievementInput,
         JSON.stringify(details),
         calculatedScore,
         finalClaimedScore,
@@ -254,34 +271,39 @@ export async function POST(req: NextRequest) {
         now,
         now
       );
-      submissionId = result.lastInsertRowid as number;
+      submissionId = Number(insertResult.lastInsertRowid);
     }
 
     // Audit log
+    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '127.0.0.1';
     db.prepare(`
-      INSERT INTO audit_logs (user_id, action, record_type, record_id, details_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO audit_logs (user_id, action, record_type, record_id, details_json, ip_address, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
       session.id,
-      action === 'DRAFT' ? 'SAVE_DRAFT' : 'SUBMIT_KRA_ITEM',
+      action === 'DRAFT' ? 'SAVE_DRAFT' : 'SUBMIT_TO_HOD',
       'FACULTY_SUBMISSION',
       String(submissionId),
       JSON.stringify({
-        categoryCode: category.code,
+        categoryId,
+        categoryName: category.name,
         calculatedScore,
         claimedScore: finalClaimedScore,
         status: newStatus,
-        explanation: scoreResult.explanation,
       }),
+      clientIp,
       now
     );
 
     return NextResponse.json({
       success: true,
       submissionId,
+      calculatedScore,
+      claimedScore: finalClaimedScore,
       status: newStatus,
-      scoreResult,
-      message: action === 'DRAFT' ? 'Draft saved successfully' : 'Submitted for review successfully!',
+      message: action === 'DRAFT' 
+        ? 'Draft saved successfully.' 
+        : 'Submission submitted to Head of Department (HOD) for verification.',
     });
   } catch (error: any) {
     console.error('Submission POST error:', error);

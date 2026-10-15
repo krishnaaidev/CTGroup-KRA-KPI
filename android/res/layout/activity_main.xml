@@ -2,7 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="#f8fafc">
 
     <WebView
         android:id="@+id/webview"
@@ -26,21 +26,30 @@
         android:padding="32dp"
         android:visibility="gone">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Connection Error"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="#1e293b" />
+        <ImageView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@drawable/ic_launcher"
+            android:contentDescription="CT Group Logo" />
 
         <TextView
+            android:id="@+id/errorTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="20dp"
+            android:text="Server Currently Offline"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#0f172a" />
+
+        <TextView
+            android:id="@+id/errorMessage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
             android:gravity="center"
-            android:text="Unable to reach CT Group KRA &amp; KPI Portal.\nPlease verify your internet connection."
-            android:textSize="15sp"
+            android:text="Unable to connect to the CT Group KRA &amp; KPI portal.\nPlease check your connection or try again shortly."
+            android:textSize="14sp"
             android:textColor="#64748b" />
 
         <Button
@@ -49,10 +58,12 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:background="#1d4ed8"
-            android:paddingLeft="24dp"
-            android:paddingRight="24dp"
-            android:text="Retry"
-            android:textColor="#ffffff" />
+            android:paddingLeft="32dp"
+            android:paddingRight="32dp"
+            android:text="Reconnect Now"
+            android:textColor="#ffffff"
+            android:textSize="15sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
 </RelativeLayout>

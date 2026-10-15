@@ -20,9 +20,11 @@ public final class R {
   }
   public static final class id {
     public static final int errorLayout=0x7f030000;
-    public static final int progressBar=0x7f030001;
-    public static final int retryButton=0x7f030002;
-    public static final int webview=0x7f030003;
+    public static final int errorMessage=0x7f030001;
+    public static final int errorTitle=0x7f030002;
+    public static final int progressBar=0x7f030003;
+    public static final int retryButton=0x7f030004;
+    public static final int webview=0x7f030005;
   }
   public static final class layout {
     public static final int activity_main=0x7f040000;

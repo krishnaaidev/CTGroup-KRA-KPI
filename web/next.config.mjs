@@ -14,6 +14,8 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ['better-sqlite3'],
+    workerThreads: false,
+    cpus: 1,
   },
   webpack: (config, { isServer }) => {
     config.cache = false;
